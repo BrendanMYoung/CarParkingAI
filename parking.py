@@ -1,10 +1,9 @@
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
-
-from scipy.interpolate import interp1d
-
-population_size = 201
+import math
+from scipy import interpolate
+population_size = 1
 mutation_rate = .005
 size_of_parameter_vector = 7
 max_generations = 100
@@ -17,7 +16,8 @@ min_acceleration = -5
 max_acceleration = 5
 
 time_steps = 10
-
+amt_control_variables = 2
+total_entries = time_steps * amt_control_variables
 # Creates a new chromosome for a single time step
 chromosomes = [0, 1]
 def newChromeosome():
@@ -25,7 +25,7 @@ def newChromeosome():
 # Creates a new sequence of chromosomes for an entire time step
 def newChromesomoneSequence():
     chromeosomeSequence = []
-    for i in range(0, time_steps, 1):
+    for i in range(0, total_entries, 1):
         chromeosomeSequence.append(newChromeosome())
 
     return chromeosomeSequence
@@ -59,20 +59,51 @@ def convertAcceleration(binary_chromosome):
     return (((oldVal - 0) * newRange) / max) + min_acceleration
 
 def convertChromesomeSequence(chromesome):
-    print(chromesome)
-    outputArray = []
+    acceleration_history = []
+    heading_history = []
+    x = []
+    y = []
     for i in range(0, len(chromesome), 2):
-        outputArray.append(convertHeading(chromesome[i]))
-        outputArray.append(convertAcceleration(chromesome[i+1]))
+
+        heading = convertHeading(chromesome[i])
+        acceleration = convertAcceleration(chromesome[i+1])
+
+        acceleration_history.append(heading)
+        heading_history.append(acceleration)
+
+    time = np.linspace(0, 10, num=10, endpoint = True)
+    s = interpolate.splrep(time, acceleration_history, s=0)
+    xnew = np.arange(0, 2*np.pi, np.pi/50)
+    ynew = interpolate.splev(xnew, s, der=0)
+    #tck = interpolate.splrep(time, acceleration_history, s=0)
+    #print(tck)
+    print(ynew)
+    plt.figure()
+    plt.plot(xnew, ynew, time, acceleration_history)
+    plt.show()
+
     print(outputArray)
+
 
 # Basically converts an entire
 def convertPopulationSeuqence(pops):
     for pop in pops:
         convertChromesomeSequence(pop)
 
+def isInBounds(x, y):
+    if x <= -4 and y > 3:
+        return True
+    elif x >-4 and x< 4 and y > -1:
+        return True
+    elif x>= 4 and y > 3:
+        return True
+    return False
+
 def main():
     generateNewRandomPopulation()
     convertPopulationSeuqence(generateNewRandomPopulation())
+
+
+
 if __name__ == "__main__":
     main()
