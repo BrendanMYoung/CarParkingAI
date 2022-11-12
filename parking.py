@@ -16,6 +16,10 @@ min_acceleration = -5
 max_acceleration = 5
 
 time_steps = 10
+steps_per_time_step = 0.1
+# List of the time steps to use for interpolation
+all_time_steps_for_x = np.arange(0, time_steps, steps_per_time_step)
+
 amt_control_variables = 2
 total_entries = time_steps * amt_control_variables
 # Creates a new chromosome for a single time step
@@ -73,18 +77,21 @@ def convertChromesomeSequence(chromesome):
 
     time = np.linspace(0, 10, num=10, endpoint = True)
     s = interpolate.splrep(time, acceleration_history, s=0)
-    xnew = np.arange(0, 2*np.pi, np.pi/50)
-    ynew = interpolate.splev(xnew, s, der=0)
+    h = interpolate.splrep(time, heading_history, s=0)
+
+    acceleration_new = interpolate.splev(all_time_steps_for_x, s, der=0)
+    heading_new = interpolate.splev(all_time_steps_for_x, h, der=0)
     #tck = interpolate.splrep(time, acceleration_history, s=0)
     #print(tck)
-    print(ynew)
     plt.figure()
-    plt.plot(xnew, ynew, time, acceleration_history)
+    for timeStep in range(0, len(all_time_steps_for_x)):
+        current_velocity = acceleration_new[timeStep]
+        current_heading = heading_new[timeStep]
+
+        x.append( current_heading* math.cos(current_velocity))
+        y.append( current_heading * math.sin(current_velocity))
+    plt.plot(x, y)
     plt.show()
-
-    print(outputArray)
-
-
 # Basically converts an entire
 def convertPopulationSeuqence(pops):
     for pop in pops:
