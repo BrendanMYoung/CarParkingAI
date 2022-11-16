@@ -5,10 +5,10 @@ import random
 import matplotlib.pyplot as plt
 import math
 from scipy import interpolate
-population_size = 201
+population_size = 401
 mutation_rate = .05
 size_of_parameter_vector = 7
-max_generations = 100
+max_generations = 1200
 
 min_heading = -0.524
 max_heading = 0.524
@@ -30,13 +30,12 @@ initial_state =  [0, 8, 0, 0]
 final_state = np.array([0, 0, 0, 0])
 K = 200
 cost_for_being_out_of_bounds = 1
-stop_criteria = 0.01
+stop_criteria = 0.1
 
 def newChromeosome():
     return np.random.choice(chromosomes, size_of_parameter_vector).tolist()
 def createNewChromeosome(val):
     chromesome = [1, 0, 0, 0, 0, 0, 0]
-
     return chromesome
 
 # Creates a new sequence of chromosomes for an entire time step
@@ -46,7 +45,7 @@ def newChromesomoneSequence():
     chromeosomeSequence.insert(0, createNewChromeosome(initial_state[2]))
     chromeosomeSequence.insert(1, createNewChromeosome(initial_state[3]))
     # Generate random chromeosomes
-    for i in range(0, total_entries-2, 1):
+    for i in range(0, total_entries, 1):
         chromeosomeSequence.append(newChromeosome())
     return chromeosomeSequence
 # Generates the entire initial population percept sequences
@@ -97,10 +96,9 @@ def convertChromesomeSequence(chromesome):
 
         acceleration_history.append(heading)
         heading_history.append(acceleration)
-    time = np.linspace(0, time_steps, num=time_steps, endpoint = True)
+    time = np.linspace(0, time_steps, num=time_steps+1, endpoint = True)
     s = interpolate.splrep(time, acceleration_history, s=0)
     h = interpolate.splrep(time, heading_history, s=0)
-
     acceleration_new = interpolate.splev(all_time_steps_for_x, s, der=0)
 
     heading_new = interpolate.splev(all_time_steps_for_x, h, der=0)
@@ -109,14 +107,13 @@ def convertChromesomeSequence(chromesome):
 
     current_x = initial_state[0]
     current_y = initial_state[1]
-    current_velocity = initial_state[2]
-    current_heading = initial_state[3]
+    #print(heading_new)
     local_cost = 0
     for timeStep in range(0, len(all_time_steps_for_x)):
         current_velocity = acceleration_new[timeStep]
         current_heading = heading_new[timeStep]
-        current_x = current_heading * math.cos(current_velocity) + initial_state[0]
-        current_y = current_heading * math.sin(current_velocity) + initial_state[1]
+        current_x += steps_per_time_step * current_heading * math.cos(current_velocity)
+        current_y += steps_per_time_step * current_heading * math.sin(current_velocity)
         if isNotInBounds(current_x, current_y):
             local_cost += math.pow(getYValue(current_x) - current_y, 2 )
         x.append( current_x)
@@ -129,34 +126,38 @@ def convertChromesomeSequence(chromesome):
         "fitness": 1 / (cost+1),
         "x": x,
         "y": y,
+        "acceleration": acceleration_new,
+        "heading": heading_new
     }
     #return [cost, x, y]
 
 def crossOver(pop1, pop2):
     # For every chromsome in each population
-    new_child1 = []
-    new_child2 = []
-
     cross_over_pivot = np.random.randint(0, len(pop1))
     new_child1 = pop2[0:cross_over_pivot] + pop1[cross_over_pivot:]
     new_child2 = pop1[0:cross_over_pivot] + pop2[cross_over_pivot:]
-
+    new_c_1 = []
+    new_c_2 = []
     # do mutation of children
     for i in range(len(new_child1)):
+        new_c_1.insert(i, [])
+        new_c_2.insert(i, [])
+
         for j in range(len(new_child1[i])):
-            new_child1[i][j] = random.choices(
+            new_c_1[i].insert(j, random.choices(
                 [new_child1[i][j], (new_child1[i][j]+1 % 2)],
                 weights=[(1-mutation_rate), mutation_rate]
             )[0]
-            new_child2[i][j] = random.choices(
+                              )
+            new_c_2[i].insert(j, random.choices(
                 [new_child2[i][j], (new_child2[i][j]+1 % 2)],
                 weights=[1-mutation_rate, mutation_rate]
-            )[0]
-    return [new_child1, new_child2]
+            )[0] )
+    return [new_c_1, new_c_2]
 # Do crossover breeding
 def newPopulationCrossover(chance_array, pops):
     new_chromeosomes = []
-    for i in range(math.ceil(population_size/2)):
+    for i in range(math.floor(population_size/2)):
 
         new_indexs = np.random.choice(
             population_size,
@@ -168,8 +169,7 @@ def newPopulationCrossover(chance_array, pops):
         new_sequences = crossOver(pop1, pop2)
         new_chromeosomes.append(new_sequences[0])
         new_chromeosomes.append(new_sequences[1])
-        while len(new_chromeosomes) > population_size - 1:
-            new_chromeosomes.pop(len(new_chromeosomes)-1)
+
     return new_chromeosomes
 
 # Basically converts an entire
@@ -183,15 +183,25 @@ def doPopulationGeneration(pops, generation):
         total_combined_fitness += values["fitness"] # get the cost index
         fitness_of_pops.insert(i, values)
         if values["fitness"] > fitness_of_pops[most_fit_pop_index]["fitness"]:
-            most_fit = values
             most_fit_pop_index = i
-    print("Generation " +str(generation) +" : " + str(most_fit["cost"]) +" / " + str(most_fit["fitness"]))
+    print("Generation " +str(generation) +" : " + str(fitness_of_pops[most_fit_pop_index]["cost"]) +" / " + str(fitness_of_pops[most_fit_pop_index]["fitness"]))
 
-    print(most_fit["fitness"] / total_combined_fitness)
 
-    if most_fit["fitness"] >= 1-stop_criteria:
+    if fitness_of_pops[most_fit_pop_index]["fitness"] >= 1-stop_criteria or generation >= max_generations:
         print('done')
-        plt.plot(most_fit["x"], most_fit["y"])
+        figure, axis = plt.subplots(3, 3)
+        axis[0, 0].plot(fitness_of_pops[most_fit_pop_index]["x"], fitness_of_pops[most_fit_pop_index]["y"])
+        axis[0, 0].set_title("x/y history")
+        axis[0, 1].plot(all_time_steps_for_x, fitness_of_pops[most_fit_pop_index]["acceleration"])
+        axis[0, 1].set_title("acceleration")
+        axis[1, 0].plot(all_time_steps_for_x, fitness_of_pops[most_fit_pop_index]["heading"])
+        axis[1, 0].set_title("heading")
+        axis[2, 0].plot(all_time_steps_for_x, fitness_of_pops[most_fit_pop_index]["x"])
+        axis[2, 0].set_title("x")
+        axis[2, 1].plot(all_time_steps_for_x, fitness_of_pops[most_fit_pop_index]["y"])
+        axis[2, 1].set_title("y")
+
+
         plt.show()
         return None
 
