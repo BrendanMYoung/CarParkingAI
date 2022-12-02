@@ -5,8 +5,8 @@ import random
 import matplotlib.pyplot as plt
 import math
 from scipy import interpolate
-population_size = 401
-mutation_rate = .05
+population_size = 201
+mutation_rate = .005
 size_of_parameter_vector = 7
 max_generations = 1200
 
@@ -17,7 +17,7 @@ min_acceleration = -5
 max_acceleration = 5
 
 time_steps = 10
-steps_per_time_step = 0.01
+steps_per_time_step = 0.1
 # List of the time steps to use for interpolation
 all_time_steps_for_x = np.arange(0, time_steps, steps_per_time_step)
 
@@ -65,8 +65,8 @@ def binaryToDecimal(binary_array):
         decimal *= -1
     return decimal
 # Converts a given binary input into standardized accelerations and headings
-# Convert from - 2^(size_of_parameter_vector - 1), to [min, max]
-max = pow(2, size_of_parameter_vector)
+# Convert from - 2^(size_of_parameter_vector) - 1, to [min, max]
+max = pow(2, size_of_parameter_vector)-1
 def convertHeading(binary_chromosome):
     oldVal = binaryToDecimal(binary_chromosome)
     newRange = max_heading - min_heading
@@ -97,11 +97,18 @@ def convertChromesomeSequence(chromesome):
         acceleration_history.append(heading)
         heading_history.append(acceleration)
     time = np.linspace(0, time_steps, num=time_steps+1, endpoint = True)
-    s = interpolate.splrep(time, acceleration_history, s=0)
-    h = interpolate.splrep(time, heading_history, s=0)
-    acceleration_new = interpolate.splev(all_time_steps_for_x, s, der=0)
+    #s = interpolate.splrep(time, acceleration_history, s=0)
+   # h = interpolate.splrep(time, heading_history, s=0)
+    #acceleration_new = interpolate.splev(all_time_steps_for_x, s, der=0)
 
-    heading_new = interpolate.splev(all_time_steps_for_x, h, der=0)
+    #heading_new = interpolate.splev(all_time_steps_for_x, h, der=0)
+    s = interpolate.CubicSpline(time, acceleration_history, bc_type='natural')
+    h = interpolate.CubicSpline(time, heading_history, bc_type='natural')
+    x_new = np.linspace(0, 10, 100)
+    acceleration_new = s(x_new)
+
+    heading_new = h(x_new)
+
     #tck = interpolate.splrep(time, acceleration_history, s=0)
     #print(tck)
 
@@ -115,7 +122,7 @@ def convertChromesomeSequence(chromesome):
         current_x += steps_per_time_step * current_heading * math.cos(current_velocity)
         current_y += steps_per_time_step * current_heading * math.sin(current_velocity)
         if isNotInBounds(current_x, current_y):
-            local_cost += math.pow(getYValue(current_x) - current_y, 2 )
+            local_cost += math.pow(getYValue(current_x) - current_y, 2 ) * steps_per_time_step
         x.append( current_x)
         y.append( current_y)
     local_final_state = np.array([current_x, current_y, current_heading, current_velocity])
@@ -189,7 +196,7 @@ def doPopulationGeneration(pops, generation):
 
     if fitness_of_pops[most_fit_pop_index]["fitness"] >= 1-stop_criteria or generation >= max_generations:
         print('done')
-        figure, axis = plt.subplots(3, 3)
+        figure, axis = plt.subplots(3, 2)
         axis[0, 0].plot(fitness_of_pops[most_fit_pop_index]["x"], fitness_of_pops[most_fit_pop_index]["y"])
         axis[0, 0].set_title("x/y history")
         axis[0, 1].plot(all_time_steps_for_x, fitness_of_pops[most_fit_pop_index]["acceleration"])
