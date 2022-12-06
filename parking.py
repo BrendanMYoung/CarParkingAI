@@ -1,13 +1,10 @@
 import numpy as np
-import sys
-import scipy
 import time
 import random
 import matplotlib.pyplot as plt
 import math
-import struct
 from scipy import interpolate
-population_size = 321
+population_size = 451
 mutation_rate = .005
 size_of_parameter_vector = 7
 max_generations = 1200
@@ -205,7 +202,7 @@ def doPopulationGeneration(pops, generation):
     print("Generation " +str(generation) +" : J = " + str(fitness_of_pops[most_fit_pop_index]["cost"]) )
 
 
-    if fitness_of_pops[most_fit_pop_index]["fitness"] >= 1-stop_criteria or generation >= max_generations:
+    if fitness_of_pops[most_fit_pop_index]["cost"] <= stop_criteria or generation >= max_generations:
         return None, fitness_of_pops[most_fit_pop_index]
 
     # Calculate fitness chance and setup random selection for crossover with pops
